@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Real-time Chat</h1>
+
+
+    <h2>Users</h2>
+    <ul id="users"></ul>
+    <h2>Add your name</h2>
+    <input type="text" id="nameInput" placeholder="Type your name...">
+    <button id="setNameButton">Set Name</button>
+
+    <h2>Channels</h2>
+    <ul id="channels"></ul>
+    <!-- create channel -->
+    <input type="text" id="createChannelInput" placeholder="Type a channel name...">
+    <button id="createChannelButton">Create Channel</button>
+
+    <h2>My Channels</h2>
+    <ul id="userChannels"></ul>
+
+
+    <h2>Messages</h2>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <input type="text" id="privateMessageInput" placeholder="Type a user id to send a private message...">
+    <button id="sendButton">Send</button>
+    
+    
+    <button id="consoleLogButton">Console Log</button>
+
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
