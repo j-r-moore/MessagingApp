@@ -18,7 +18,11 @@ app.use(express.static('public'));
 
 
 
-
+//quick test fetch
+app.get('/getUserInfo', async (req, res) => {
+    const user = await users.findOne({ where: { userId: 1 } });
+    res.send(user);
+});
 
 
 io.on('connection', (socket) => {
