@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Text, View } from 'react-native';
 //import the channelList component
 import ChannelList from '../../../components/channelList';
+import { WebSocketContext } from '../../../webSocket';
 
 
 const Home = () => {
+    const ws = useContext(WebSocketContext);
     const [isLoading, setLoading] = useState(true);
     const [data, setData] = useState([]);
     const [error, setError] = useState(null);
+
 
     const fetchData = async () => {
         try {

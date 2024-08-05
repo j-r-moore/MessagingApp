@@ -1,4 +1,5 @@
 const Sequelize = require('sequelize');
+const channel_link = require('./models/channel_link.js');
 
 
 const sequelize = new Sequelize('database', 'username', 'password', {

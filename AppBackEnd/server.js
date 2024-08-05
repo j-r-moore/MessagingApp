@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const { Server } = require('socket.io');
 const fs = require('node:fs');
 const { users, messages, channels, channelLink, friends } = require('./dbObjects');
 const { Op } = require('sequelize');
@@ -10,7 +11,11 @@ const { time } = require('console');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+    }
+});
 
 
 app.use(express.json());
@@ -23,6 +28,11 @@ app.get('/getUserInfo', async (req, res) => {
     const allUsers = await users.findAll();
     console.log(allUsers);
     res.send(allUsers);
+});
+
+//error handling for socket.io
+io.on('error', (err) => {
+    console.log(err);
 });
 
 
