@@ -23,12 +23,6 @@ app.use(express.static('public'));
 
 
 
-//quick test fetch
-app.get('/getUserInfo', async (req, res) => {
-    const allUsers = await users.findAll();
-    console.log(allUsers);
-    res.send(allUsers);
-});
 
 //error handling for socket.io
 io.on('error', (err) => {
@@ -194,6 +188,12 @@ io.on('connection', (socket) => {
             console.log('Channel not found');
             return res.sendStatus(404);
         }
+
+        //find the users in the channel so you can link the messages to the users
+        const channelUsers = await channelLink.findAll({ where: { channelId: channelId } });
+        const channelUsersList = channelUsers.map(user => user.userId);
+        const usersInChannel = await users.findAll({ where: { userId: { [Op.in]: channelUsersList } } });
+
         //only load the last 100 messages from the last loaded message
         if (lastMessageId) {
             const lastMessage = await messages.findOne({ where: { messageId: lastMessageId } });
@@ -202,10 +202,20 @@ io.on('connection', (socket) => {
                 return res.sendStatus(404);
             }
             const allMessages = await messages.findAll({ where: { channelId: channelId, messageId: { [Op.gt]: lastMessageId } }, limit: 100 }); //limit to 100 messages from the last message. op.gt is greater than
-            res.send(allMessages);
+            const simplifiedMessages = allMessages.map(message => {
+                const user = usersInChannel.find(user => user.userId === message.userId);
+                return { message: message.message, name: user.name, time: message.time, messageId: message.messageId, userId: message.userId };
+            });
+            console.log(`Sending messages to client from message ${lastMessageId}`);
+            console.log(simplifiedMessages);
         } else {
             const allMessages = await messages.findAll({ where: { channelId: channelId }, limit: 100 });
-            res.send(allMessages);
+            const simplifiedMessages = allMessages.map(message => {
+                const user = usersInChannel.find(user => user.userId === message.userId);
+                return { message: message.message, name: user.name, time: message.time, messageId: message.messageId, userId: message.userId };
+            });
+            console.log('Sending messages to client');
+            console.log(simplifiedMessages);
         }
         
     });

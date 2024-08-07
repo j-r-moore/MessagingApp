@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard, 
 	KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { WebSocketContext } from '../../webSocket';
+import { socket } from '../../webSocket';
 
 
 const Messages = () => {
@@ -10,7 +10,6 @@ const Messages = () => {
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 	const { id } = useLocalSearchParams();
-	const ws = useContext(WebSocketContext);
 	
 
     const fetchData = async () => {
@@ -55,15 +54,15 @@ const Messages = () => {
 
 	//logic for when the server emits a message event while the user is on the messages page
 	useEffect(() => {
-		if (ws) {
-			ws.on('message', (message) => {
+		if (socket.connected) {
+			socket.on('message', (message) => {
 				console.log('Message received:', message);
 				setData((prevData) => [...prevData, message]); // Add the new message to the data array
 			}
 		);
 		}
 	}
-	, [ws]);
+	, []);
 
 	//logic for when the messages input is submitted
 	const handleSubmit = (e) => {

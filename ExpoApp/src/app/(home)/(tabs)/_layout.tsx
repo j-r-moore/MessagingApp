@@ -13,6 +13,12 @@ export default function TabsNavigator() {
                     tabBarIcon: ({ size, color }) => <FontAwesome5 name="home" size={size} color={color} />,
                 }} />
             <Tabs.Screen
+                name="friends"
+                options={{
+                    title: 'Friends',
+                    tabBarIcon: ({ size, color }) => <FontAwesome5 name="users" size={size} color={color} />,
+                }} />
+            <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Profile',
