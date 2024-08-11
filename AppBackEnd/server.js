@@ -51,6 +51,62 @@ io.on('connection', (socket) => {
     });
 
 
+    app.post('/signup', async (req, res) => {
+        const { name, email, password } = req.body;
+        if (!name || !email || !password) {
+            console.log('Invalid name or email or password');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { email: email } });
+        if (user) {
+            console.log('User already exists');
+            return res.sendStatus(409);
+        }
+        //token is a random string that is generated when the user signs up or logs in
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '' });
+        console.log('User created');
+        //send token to client
+        res.send({ token });
+    });
+
+    app.post('/login', async (req, res) => {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            console.log('Invalid email or password');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { email: email, hashedPassword: password } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
+        //token is a random string that is generated when the user signs up or logs in
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        await users.update({ token: token }, { where: { email: email } });
+        console.log('User logged in');
+        //send token to client
+        res.send({ token });
+    });
+
+    app.post('/upateSocketId', async (req, res) => {
+        const { token, socketId } = req.body;
+        if (!token || !socketId) {
+            console.log('Invalid token or socketId');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
+        await users.update({ socketId: socketId }, { where: { token: token } });
+        console.log('Socket id updated');
+        res.sendStatus(200);
+    });
+
+
+
 
     socket.on('addUser', async (name) => {
         const user = await users.findOne({ where: { name: name } });
@@ -208,6 +264,7 @@ io.on('connection', (socket) => {
             });
             console.log(`Sending messages to client from message ${lastMessageId}`);
             console.log(simplifiedMessages);
+            res.send(simplifiedMessages);
         } else {
             const allMessages = await messages.findAll({ where: { channelId: channelId }, limit: 100 });
             const simplifiedMessages = allMessages.map(message => {
@@ -216,6 +273,7 @@ io.on('connection', (socket) => {
             });
             console.log('Sending messages to client');
             console.log(simplifiedMessages);
+            res.send(simplifiedMessages);
         }
         
     });

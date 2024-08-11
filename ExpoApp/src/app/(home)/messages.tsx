@@ -106,7 +106,7 @@ const Messages = () => {
 						{error ? <Text>{error.toString()}</Text> : null}
 						{isLoading ? <Text>Loading...</Text> : null}
 						{finaldata.map((data, index) => (
-							<Text key={index}>{data.userId}: {data.message}</Text>
+							<Text key={index}>{data.name}: {data.message}</Text>
 						))}
 					</View>
 					<TextInput
@@ -124,9 +124,9 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	inner: {
-		padding: 24,
+		padding: 30,
 		flex: 1,
-		justifyContent: 'center',
+		justifyContent: 'flex-start',
 	},
 	messageText: {
 		fontSize: 16,
