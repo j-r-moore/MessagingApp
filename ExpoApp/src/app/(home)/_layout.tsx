@@ -7,7 +7,7 @@ export default function Layout() {
     const { session } = useSession();
     
     if (!session) {
-        return <Redirect href="/signIn" />;
+        return <Redirect href="../login" />;
     }
 
     return <Stack />;

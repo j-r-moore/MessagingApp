@@ -4,6 +4,7 @@ import { Alert, StyleSheet, View } from 'react-native'
 import { Button, Input } from 'react-native-elements'
 
 import { useSession } from '../../storeToken'
+import { socket } from '../../webSocket'
 
 export default function Auth() {
   const { signIn } = useSession()
@@ -11,6 +12,17 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
+
+  if (socket.disconnected) {
+    Alert.alert('Connection lost', 'Please check your internet connection')
+    // try to reconnect every 5 seconds
+    while (socket.disconnected) {
+      setTimeout(() => {
+        socket.connect()
+      }, 5000)
+    }
+  }
+
 
   async function signInWithEmail() {
     setLoading(true)

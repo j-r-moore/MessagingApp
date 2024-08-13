@@ -24,43 +24,6 @@ app.use(express.static('public'));
 
 
 
-app.post('/signup', async (req, res) => {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-        console.log('Invalid name or email or password');
-        return res.sendStatus(400);
-    }
-    const user = await users.findOne({ where: { email: email } });
-    if (user) {
-        console.log('User already exists');
-        return res.sendStatus(409);
-    }
-    //token is a random string that is generated when the user signs up or logs in
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '' });
-    console.log('User created');
-    //send token to client
-    res.send({ token });
-});
-
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-        console.log('Invalid email or password');
-        return res.sendStatus(400);
-    }
-    const user = await users.findOne({ where: { email: email, hashedPassword: password } });
-    if (!user) {
-        console.log('User not found');
-        return res.sendStatus(404);
-    }
-    //token is a random string that is generated when the user signs up or logs in
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    await users.update({ token: token }, { where: { email: email } });
-    console.log('User logged in');
-    //send token to client
-    res.send({ token });
-});
 
 
 
@@ -76,6 +39,52 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('User disconnected');
     });
+
+
+
+        
+    app.post('/signup', async (req, res) => {
+        const { name, email, password } = req.body;
+        const socketId = socket.id;
+        if (!name || !email || !password) {
+            console.log('Invalid name or email or password');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { email: email } });
+        if (user) {
+            console.log('User already exists');
+            return res.sendStatus(409);
+        }
+        //token is a random string that is generated when the user signs up or logs in
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '', socketId: socketId });
+        console.log('User created');
+        //send token to client
+        res.send({ token });
+    });
+
+    app.post('/login', async (req, res) => {
+        const { email, password } = req.body;
+        const socketId = socket.id;
+        if (!email || !password) {
+            console.log('Invalid email or password');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { email: email, hashedPassword: password } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
+        //token is a random string that is generated when the user signs up or logs in
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        await users.update({ token: token, socketId: socketId }, { where: { email: email, hashedPassword: password } });
+        console.log('User logged in');
+        //send token to client
+        res.send({ token });
+    });
+
+
+
 
 
 
