@@ -9,14 +9,37 @@ export default function Auth() {
   const { signIn } = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function signInWithEmail() {
     setLoading(true)
     console.log('signInWithEmail', email, password)
+
+    if (!email || !password) {
+      Alert.alert('Please enter an email and password')
+      setLoading(false)
+      return
+    }
     
-    const token = 'token'
-    signIn(token)
+    try {
+      // Call the sign in API
+      const response = await fetch('https://jaydenmoore.net/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('Success:', data)
+        signIn(data.token)
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      Alert.alert('Error:', error)
+    }
 
     setLoading(false)
   }
@@ -25,6 +48,31 @@ export default function Auth() {
     setLoading(true)
     console.log('signUpWithEmail', email, password)
 
+    if (!name || !email || !password) {
+      Alert.alert('Please enter a name, email, and password')
+      setLoading(false)
+      return
+    }
+
+    try {
+      // Call the sign up API
+      const response = await fetch('https://jaydenmoore.net/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('Success:', data)
+        signIn(data.token)
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      Alert.alert('Error:', error)
+    }
+
     
     setLoading(false)
   }
@@ -32,6 +80,13 @@ export default function Auth() {
   return (
     <View style={styles.container}>
       <View style={[styles.verticallySpaced, styles.mt20]}>
+        <Input
+          label="Name"
+          leftIcon={{ type: 'font-awesome', name: 'user' }}
+          onChangeText={(text) => setName(text)}
+          value={name}
+          placeholder="Name"
+        />
         <Input
           label="Email"
           leftIcon={{ type: 'font-awesome', name: 'envelope' }}
