@@ -49,12 +49,14 @@ const Messages = () => {
     }, []);
 
 	for (let i = 0; i < data.length; i++) {
+		console.log(data[i]);
 		finaldata.push(data[i]);
 	}
 
 	//logic for when the server emits a message event while the user is on the messages page
 	useEffect(() => {
 		if (socket.connected) {
+			console.log('Socket connected');
 			socket.on('message', (message) => {
 				console.log('Message received:', message);
 				setData((prevData) => [...prevData, message]); // Add the new message to the data array
@@ -92,7 +94,7 @@ const Messages = () => {
 		})
 		// Add the new message to the data array
 		.then(() => {
-			setData((prevData) => [...prevData, { userId: 1, message: message }]);
+			setData((prevData) => [...prevData, { name: 'You', message: message }]);
 		});
 	}
 

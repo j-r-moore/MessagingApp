@@ -5,6 +5,7 @@ import { Button, Input } from 'react-native-elements'
 
 import { useSession } from '../../storeToken'
 import { socket } from '../../webSocket'
+import { router } from 'expo-router'
 
 export default function Auth() {
   const { signIn } = useSession()
@@ -14,13 +15,12 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
 
   if (socket.disconnected) {
-    Alert.alert('Connection lost', 'Please check your internet connection')
-    // try to reconnect every 5 seconds
-    while (socket.disconnected) {
-      setTimeout(() => {
-        socket.connect()
-      }, 5000)
-    }
+    // wait 10 seconds before assuming the connection is lost
+    setTimeout(() => {
+      if (socket.disconnected) {
+        Alert.alert('Connection lost', 'Please check your internet connection')
+      }
+    }, 10000)
   }
 
 
@@ -43,11 +43,25 @@ export default function Auth() {
         },
         body: JSON.stringify({ email, password }),
       })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('Success:', data)
-        signIn(data.token)
+      .then((response) => {
+        console.log('response:', response);
+        if (response.ok) {
+          return response.json();
+        } else {
+          Alert.alert('Error:', 'Invalid email or password');
+        }
       })
+      .catch((error) => {
+        console.error('Error:', error)
+        Alert.alert('Error:', error)
+      })
+
+      if (response) {
+        // Sign in the user
+        console.log('token:', response.token)
+        signIn(response.token)
+        router.push('/'); 
+      }
     } catch (error) {
       console.error('Error:', error)
       Alert.alert('Error:', error)
@@ -75,11 +89,25 @@ export default function Auth() {
         },
         body: JSON.stringify({ name, email, password }),
       })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('Success:', data)
-        signIn(data.token)
+      .then((response) => {
+        console.log('response:', response);
+        if (response.ok) {
+          return response.json();
+        } else {
+          Alert.alert('Error:', 'Invalid email or password');
+        }
       })
+      .catch((error) => {
+        console.error('Error:', error)
+        Alert.alert('Error:', error)
+      })
+
+      if (response) {
+        // Sign in the user
+        console.log('token:', response.token)
+        signIn(response.token)
+        router.push('/');
+      }
     } catch (error) {
       console.error('Error:', error)
       Alert.alert('Error:', error)

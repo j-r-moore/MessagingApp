@@ -1,12 +1,13 @@
 import { useContext, createContext, type PropsWithChildren, useState } from 'react';
 import { storeToken, getToken, deleteToken } from './tokenHandler';
+import { Alert } from 'react-native';
 
 
 
 const AuthContext = createContext<{ // sign in and out context
     signIn: (token: string) => void;
     signOut: () => void;
-    session?: string | null; 
+    session: string | null;
     isLoading: boolean;
 }>({
     signIn: () => {},
@@ -36,10 +37,15 @@ export function SessionProvider({ children }: PropsWithChildren) {
                 session,
                 isLoading,
                 signIn: async (token: string) => {
-                    await storeToken(token);
                     setSession([token, false]);
+                    console.log('Signing in with token:', token);
+                    Alert.alert('You have been signed in');
+                    await storeToken(token);
+                    
                 },
                 signOut: async () => {
+                    console.log('Signing out');
+                    Alert.alert('You have been signed out');
                     await deleteToken();
                     setSession([null, false]);
                 },
