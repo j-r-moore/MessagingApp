@@ -3,12 +3,14 @@ import { Text, View } from 'react-native';
 //import the channelList component
 import ChannelList from '../../../components/channelList';
 import { socket } from '../../../webSocket';
+import { useSession } from '../../../storeToken';
 
 
 const Home = () => {
     const [isLoading, setLoading] = useState(true);
     const [data, setData] = useState([]);
     const [error, setError] = useState(null);
+    const { signOut } = useSession();
 
     useEffect(() => {
         if(socket.connected) {
@@ -48,6 +50,8 @@ const Home = () => {
 
     return (
         <View>
+            <Text>Home</Text>
+            <Text onPress={signOut}>Sign Out</Text>
             {error ? <Text>{error.toString()}</Text> : null}
             {isLoading ? <Text>Loading...</Text> : null}
             {finaldata.map((data) => (

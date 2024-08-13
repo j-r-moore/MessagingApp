@@ -3,14 +3,20 @@ import React, { useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { Button, Input } from 'react-native-elements'
 
+import { useSession } from '../../storeToken'
+
 export default function Auth() {
+  const { signIn } = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function signInWithEmail() {
     setLoading(true)
-    console.log('signInWithEmail', email, password) 
+    console.log('signInWithEmail', email, password)
+    
+    const token = 'token'
+    signIn(token)
 
     setLoading(false)
   }
@@ -18,6 +24,7 @@ export default function Auth() {
   async function signUpWithEmail() {
     setLoading(true)
     console.log('signUpWithEmail', email, password)
+
     
     setLoading(false)
   }

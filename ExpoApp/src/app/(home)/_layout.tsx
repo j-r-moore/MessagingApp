@@ -1,11 +1,15 @@
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import React from 'react';
 
+import { useSession } from '../../storeToken';
+
 export default function Layout() {
-    return (
-        <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Home' }} />
-            <Stack.Screen name="messages" options={{ title: 'Messages' }} />
-        </Stack>
-    );
+    const { session } = useSession();
+    
+    if (!session) {
+        return <Redirect href="/signIn" />;
+    }
+
+    return <Stack />;
+
 }
