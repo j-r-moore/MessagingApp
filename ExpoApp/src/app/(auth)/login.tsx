@@ -15,7 +15,6 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [token, setToken] = useState('')
 
   if (socket.disconnected) {
     // wait 10 seconds before assuming the connection is lost
@@ -62,19 +61,34 @@ export default function Auth() {
       if (response) {
         // Sign in the user
         console.log('token:', response.token)
-        setToken(response.token)
         signIn(response.token)
 
-        const userData = await getUserInfo();
+
+        // Get the user info
+        const userData = await getUserInfo(response.token);
         if (userData) {
-          console.log('User data:', userData);
+          const userInfo = userData.userInformation;
+          const channels = userData.channels;
+          // const friends = userData.friendsList;
+
+          console.log('User info:', userInfo);
+          console.log('Channels:', channels);
 
           try {
-            await AsyncStorage.setItem('userData', JSON.stringify(userData))
+            if (userInfo) {
+              await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo))
+            }
+            if (channels) {
+              await AsyncStorage.setItem('channels', JSON.stringify(channels))
+            }
+            // if (friends) {  
+              // await AsyncStorage.setItem('friends', JSON.stringify(friends))
+            // }
           } catch (error) {
             console.error('Error:', error)
             Alert.alert('Error:', error)
           }
+          
         }
 
 
@@ -123,11 +137,10 @@ export default function Auth() {
       if (response) {
         // Sign in the user
         console.log('token:', response.token)
-        setToken(response.token)
         signIn(response.token)
 
         // Get the user info
-        const userData = await getUserInfo();
+        const userData = await getUserInfo(response.token)
         if (userData) {
           const userInfo = userData.userInformation;
           const channels = userData.channels;
@@ -159,13 +172,15 @@ export default function Auth() {
   }
 
   //function to call the get user info API
-  async function getUserInfo() {
+  async function getUserInfo(tokenSet) {
+    console.log('getUserInfo');
+    console.log('token:', tokenSet);
     try {
       const response = await fetch('https://jaydenmoore.net/myData', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token,
+          'Authorization': 'Bearer ' + tokenSet,
         },
       })
       .then((response) => {

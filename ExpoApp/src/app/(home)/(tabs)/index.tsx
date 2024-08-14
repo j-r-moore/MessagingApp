@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import ChannelList from '../../../components/channelList';
 import { socket } from '../../../webSocket';
 import { useSession } from '../../../storeToken';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 const Home = () => {
@@ -12,35 +13,21 @@ const Home = () => {
     const [error, setError] = useState(null);
     const { signOut } = useSession();
 
-    useEffect(() => {
-        if(socket.connected) {
-            fetchData();
-        } else {
-            socket.on('connect', () => {
-                fetchData();
-            });
-        }
-    }
-    , []);
-
-
-    const fetchData = async () => {
+    const getChannels = async () => {
         try {
             setLoading(true);
-            const userId = 1;
-            socket.emit('getUserInfo', userId);
-            socket.on('userInfo', (user, channels) => {
-                console.log('User info:', user);
-                console.log('Channels:', channels);
-                setData(channels);
-            });
+            const value = await AsyncStorage.getItem('channels');
+            if (value !== null) {
+                setData(JSON.parse(value));
+            }
         } catch (error) {
-            console.error('Fetch error:', error);
+            console.error('AsyncStorage error:', error);
             setError(error);
         } finally {
             setLoading(false);
         }
-    }
+    };
+    
     const finaldata = [];
     
 

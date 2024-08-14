@@ -85,7 +85,7 @@ io.on('connection', (socket) => {
 
 
     app.post('/myData', async (req, res) => {
-        const token = req.headers.authorization;
+        const token = req.headers.authorization.split(' ')[1];
         if (!token) {
             console.log('Invalid token');
             return res.sendStatus(400);
@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
 
         //send the user non-sensitive information and all the user's friends and channels
         const userChannels = await channelLink.findAll({ where: { userId: user.userId } });
-        const channels = await channels.findAll({ where: { channelId: { [Op.in]: userChannels.map(channel => channel.channelId) } } });
+        const channelsData = await channels.findAll({ where: { channelId: { [Op.in]: userChannels.map(channel => channel.channelId) } } });
 
         // const userFriends = await friends.findAll({ where: { userId: user.userId } });
         // const friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.friendId) } } });
@@ -110,7 +110,7 @@ io.on('connection', (socket) => {
         console.log('User data sent ' + userInformation);
 
         // res.send({ userInformation, friendsList, channels });
-        res.send({ userInformation, channels });
+        res.send({ userInformation, channelsData });
     });
 
 
@@ -148,22 +148,23 @@ io.on('connection', (socket) => {
         io.emit('users', allUsers);
     });
 
-    socket.on('getUserInfo', async (userId) => {
-        console.log('Getting user info for user ' + userId);
-        const user = await users.findOne({ where: { userId: userId } });
-        // const userFriends = 
-        const channelLinks = await channelLink.findAll({ where: { userId: userId } });
-        const channelNames = await channels.findAll({ where: { channelId: { [Op.in]: channelLinks.map(channelLink => channelLink.channelId) } } });
-        //send the channel names and ids to the user
-        const userChannels = channelNames.map(channel => {
-            return { name: channel.name, channelId: channel.channelId };
-        });
-        if (!user) {
-            console.log('User not found');
-            return;
-        }
-        io.to(socket.id).emit('userInfo', user, userChannels);
-    });
+    // this is now handled by the addUser function
+    // socket.on('getUserInfo', async (userId) => {
+    //     console.log('Getting user info for user ' + userId);
+    //     const user = await users.findOne({ where: { userId: userId } });
+    //     // const userFriends = 
+    //     const channelLinks = await channelLink.findAll({ where: { userId: userId } });
+    //     const channelNames = await channels.findAll({ where: { channelId: { [Op.in]: channelLinks.map(channelLink => channelLink.channelId) } } });
+    //     //send the channel names and ids to the user
+    //     const userChannels = channelNames.map(channel => {
+    //         return { name: channel.name, channelId: channel.channelId };
+    //     });
+    //     if (!user) {
+    //         console.log('User not found');
+    //         return;
+    //     }
+    //     io.to(socket.id).emit('userInfo', user, userChannels);
+    // });
 
 
 
