@@ -78,26 +78,42 @@ io.on('connection', (socket) => {
         //token is a random string that is generated when the user signs up or logs in
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         await users.update({ token: token, socketId: socketId }, { where: { email: email, hashedPassword: password } });
-        console.log('User logged in');
+        console.log('User logged in, token updated, and socket id updated: ' + socketId);
         //send token to client
         res.send({ token });
     });
 
 
+    app.post('/myData', async (req, res) => {
+        const token = req.headers.authorization;
+        if (!token) {
+            console.log('Invalid token');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
 
+        //send the user non-sensitive information and all the user's friends and channels
+        const userChannels = await channelLink.findAll({ where: { userId: user.userId } });
+        const channels = await channels.findAll({ where: { channelId: { [Op.in]: userChannels.map(channel => channel.channelId) } } });
 
+        // const userFriends = await friends.findAll({ where: { userId: user.userId } });
+        // const friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.friendId) } } });
+        // friendsList.forEach(friend => {
+        //     friend = { name: friend.name, status: friend.status, statusMessage: friend.statusMessage, userId: friend.userId };
+        // });
 
+        const userInformation = { name: user.name, status: user.status, statusMessage: user.statusMessage };
+        console.log('User data sent ' + userInformation);
 
-    socket.on('getUsers', async () => {
-        const allUsers = await users.findAll();
-        const simplifiedUsers = allUsers.map(user => {
-            return { name: user.name, userId: user.userId };
-        });
-        console.log('Sending users to client');
-        console.log(simplifiedUsers);
-        io.emit('users', simplifiedUsers);  
-        io.emit('channels', await channels.findAll());      
+        // res.send({ userInformation, friendsList, channels });
+        res.send({ userInformation, channels });
     });
+
+
 
     app.post('/upateSocketId', async (req, res) => {
         const { token, socketId } = req.body;
