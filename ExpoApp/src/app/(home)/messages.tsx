@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, createContext} from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard, 
 	KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -6,6 +6,7 @@ import { socket } from '../../webSocket';
 
 
 const Messages = () => {
+	const [message, setMessage] = useState('');
     const [data, setData] = useState([]);
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -67,8 +68,8 @@ const Messages = () => {
 	, []);
 
 	//logic for when the messages input is submitted
-	const handleSubmit = (e) => {
-		const message = e.nativeEvent.text;
+	const handleSubmit = () => {
+		setLoading(true);
 		fetch('https://jaydenmoore.net/message', {
 			method: 'POST',
 			headers: {
@@ -81,21 +82,25 @@ const Messages = () => {
 				message: message,
 			}),
 		})
-		.then((response) => {
+		.then(async (response) => {
+			setLoading(false);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			} else {
 				console.log('HTTP status 200');
+				const data = await response.json();
+				const name = data.name;
+				setData((prevData) => [...prevData, { name: name, message: message }]);
+				setMessage('');
 			}
 		})
 		.catch((error) => {
+			setLoading(false);
 			console.error('Fetch error:', error);
 			setError(error);
-		})
-		// Add the new message to the data array
-		.then(() => {
-			setData((prevData) => [...prevData, { name: 'You', message: message }]);
 		});
+
+		
 	}
 
     return (
@@ -112,7 +117,10 @@ const Messages = () => {
 						))}
 					</View>
 					<TextInput
+						style={styles.messageBox}
 						placeholder="Enter a message"
+						value={message}
+						onChangeText={setMessage}
 						onSubmitEditing={handleSubmit}
 					/>
 				</ScrollView>
@@ -130,8 +138,11 @@ const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: 'flex-start',
 	},
-	messageText: {
-		fontSize: 16,
+	messageBox: {
+		borderWidth: 1,
+		borderColor: 'black',
+		padding: 10,
+		marginTop: 10,
 	},
 });
 

@@ -2,10 +2,12 @@
 import React, { useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import { Button, Input } from 'react-native-elements'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { useSession } from '../../storeToken'
 import { socket } from '../../webSocket'
 import { router } from 'expo-router'
+
 
 export default function Auth() {
   const { signIn } = useSession()
@@ -13,6 +15,7 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [token, setToken] = useState('')
 
   if (socket.disconnected) {
     // wait 10 seconds before assuming the connection is lost
@@ -59,7 +62,22 @@ export default function Auth() {
       if (response) {
         // Sign in the user
         console.log('token:', response.token)
+        setToken(response.token)
         signIn(response.token)
+
+        const userData = await getUserInfo();
+        if (userData) {
+          console.log('User data:', userData);
+
+          try {
+            await AsyncStorage.setItem('userData', JSON.stringify(userData))
+          } catch (error) {
+            console.error('Error:', error)
+            Alert.alert('Error:', error)
+          }
+        }
+
+
         router.push('/'); 
       }
     } catch (error) {
@@ -105,7 +123,30 @@ export default function Auth() {
       if (response) {
         // Sign in the user
         console.log('token:', response.token)
+        setToken(response.token)
         signIn(response.token)
+
+        // Get the user info
+        const userData = await getUserInfo();
+        if (userData) {
+          const userInfo = userData.userInformation;
+          const channels = userData.channels;
+          // const friends = userData.friendsList;
+
+          console.log('User info:', userInfo);
+          console.log('Channels:', channels);
+
+          try {
+            await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo))
+            await AsyncStorage.setItem('channels', JSON.stringify(channels))
+            // await AsyncStorage.setItem('friends', JSON.stringify(friends))
+          } catch (error) {
+            console.error('Error:', error)
+            Alert.alert('Error:', error)
+          }
+          
+        }
+
         router.push('/');
       }
     } catch (error) {
@@ -116,6 +157,41 @@ export default function Auth() {
     
     setLoading(false)
   }
+
+  //function to call the get user info API
+  async function getUserInfo() {
+    try {
+      const response = await fetch('https://jaydenmoore.net/myData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+      })
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        } else {
+          Alert.alert('Error:', 'Invalid token');
+        }
+      })
+      .catch((error) => {
+        console.error('Error:', error)
+        Alert.alert('Error:', error)
+      })
+
+      if (response) {
+        console.log('User info:', response);
+        const userData = response;
+        return userData;
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      Alert.alert('Error:', error)
+    }
+  }
+
+
 
   return (
     <View style={styles.container}>

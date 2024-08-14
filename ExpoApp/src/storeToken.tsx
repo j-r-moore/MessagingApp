@@ -3,7 +3,6 @@ import { storeToken, getToken, deleteToken } from './tokenHandler';
 import { Alert } from 'react-native';
 
 
-
 const AuthContext = createContext<{ // sign in and out context
     signIn: (token: string) => void;
     signOut: () => void;
@@ -41,7 +40,6 @@ export function SessionProvider({ children }: PropsWithChildren) {
                     console.log('Signing in with token:', token);
                     Alert.alert('You have been signed in');
                     await storeToken(token);
-                    
                 },
                 signOut: async () => {
                     console.log('Signing out');
