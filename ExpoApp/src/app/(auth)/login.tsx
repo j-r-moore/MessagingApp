@@ -14,6 +14,7 @@ export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
 
   if (socket.disconnected) {
@@ -68,7 +69,7 @@ export default function Auth() {
         const userData = await getUserInfo(response.token);
         if (userData) {
           const userInfo = userData.userInformation;
-          const channels = userData.channels;
+          const channels = userData.channelsData;
           // const friends = userData.friendsList;
 
           console.log('User info:', userInfo);
@@ -106,8 +107,8 @@ export default function Auth() {
     setLoading(true)
     console.log('signUpWithEmail', email, password)
 
-    if (!name || !email || !password) {
-      Alert.alert('Please enter a name, email, and password')
+    if (!name || !email || !password || !username) {
+      Alert.alert('Please enter a name, email, and password and username')
       setLoading(false)
       return
     }
@@ -119,14 +120,14 @@ export default function Auth() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, username }),
       })
       .then((response) => {
         console.log('response:', response);
         if (response.ok) {
           return response.json();
         } else {
-          Alert.alert('Error:', 'Invalid email or password');
+          Alert.alert('Error:', 'Email may already be in use, or username may already be taken. Please try again with a different email or username.');
         }
       })
       .catch((error) => {
@@ -144,7 +145,8 @@ export default function Auth() {
         if (userData) {
           const userInfo = userData.userInformation;
           const channels = userData.channels;
-          // const friends = userData.friendsList;
+          const friends = userData.friendsList;
+          const pendingFriends = userData.pendingFriendsList;
 
           console.log('User info:', userInfo);
           console.log('Channels:', channels);
@@ -152,7 +154,8 @@ export default function Auth() {
           try {
             await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo))
             await AsyncStorage.setItem('channels', JSON.stringify(channels))
-            // await AsyncStorage.setItem('friends', JSON.stringify(friends))
+            await AsyncStorage.setItem('friends', JSON.stringify(friends))
+            await AsyncStorage.setItem('pendingFriends', JSON.stringify(pendingFriends))
           } catch (error) {
             console.error('Error:', error)
             Alert.alert('Error:', error)
@@ -205,6 +208,7 @@ export default function Auth() {
       Alert.alert('Error:', error)
     }
   }
+      
 
 
 
@@ -216,7 +220,14 @@ export default function Auth() {
           leftIcon={{ type: 'font-awesome', name: 'user' }}
           onChangeText={(text) => setName(text)}
           value={name}
-          placeholder="Name"
+          placeholder="Name (Sign up only)"
+        />
+        <Input
+          label="Username"
+          leftIcon={{ type: 'font-awesome', name: 'user' }}
+          onChangeText={(text) => setUsername(text)}
+          value={username}
+          placeholder="Username (Sign up only)"
         />
         <Input
           label="Email"

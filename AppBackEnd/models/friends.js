@@ -8,6 +8,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
+        pending: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true,
+        },
     });
 
     return friends;

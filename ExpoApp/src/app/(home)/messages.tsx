@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard,
 	KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { socket } from '../../webSocket';
+import { getToken } from '../../tokenHandler';
 
 
 const Messages = () => {
@@ -11,6 +12,23 @@ const Messages = () => {
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 	const { id } = useLocalSearchParams();
+	const [token, setToken] = useState('');
+
+	useEffect(() => {
+		getToken().then((token) => {
+			setToken(token);
+		}
+		)
+		.catch((error) => {
+			console.error('Error getting token:', error);
+		}
+		)
+		.then(() => {
+			fetchData();
+		}
+		);
+	});
+	
 	
 
     const fetchData = async () => {
@@ -21,6 +39,7 @@ const Messages = () => {
                 headers: {
                     Accept: 'application/json',
                     'Content-Type': 'application/json',
+					'Authorization': 'Bearer ' + token,
                 },
                 body: JSON.stringify({
                     channelId: id,
@@ -44,10 +63,6 @@ const Messages = () => {
     };
 
 	const finaldata = [];
-
-    useEffect(() => {
-        fetchData();
-    }, []);
 
 	for (let i = 0; i < data.length; i++) {
 		console.log(data[i]);
@@ -75,6 +90,7 @@ const Messages = () => {
 			headers: {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
+				'Authorization': 'Bearer ' + token,
 			},
 			body: JSON.stringify({
 				channelId: id,

@@ -44,7 +44,7 @@ io.on('connection', (socket) => {
 
         
     app.post('/signup', async (req, res) => {
-        const { name, email, password } = req.body;
+        const { name, username, email, password } = req.body;
         const socketId = socket.id;
         if (!name || !email || !password) {
             console.log('Invalid name or email or password');
@@ -55,9 +55,14 @@ io.on('connection', (socket) => {
             console.log('User already exists');
             return res.sendStatus(409);
         }
+        const usernameCheck = await users.findOne({ where: { username: username } });
+        if (usernameCheck) {
+            console.log('Username already exists');
+            return res.sendStatus(409);
+        }
         //token is a random string that is generated when the user signs up or logs in
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '', socketId: socketId });
+        await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '', socketId: socketId, username: username });
         console.log('User created');
         //send token to client
         res.send({ token });
@@ -100,17 +105,30 @@ io.on('connection', (socket) => {
         const userChannels = await channelLink.findAll({ where: { userId: user.userId } });
         const channelsData = await channels.findAll({ where: { channelId: { [Op.in]: userChannels.map(channel => channel.channelId) } } });
 
-        // const userFriends = await friends.findAll({ where: { userId: user.userId } });
-        // const friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.friendId) } } });
-        // friendsList.forEach(friend => {
-        //     friend = { name: friend.name, status: friend.status, statusMessage: friend.statusMessage, userId: friend.userId };
-        // });
+        const userFriends = await friends.findAll({ where: { [Op.or]: [{ userId1: user.userId }, { userId2: user.userId }] } });
+        userFriends = userFriends.filter(friend => friend.pending === false);
+        const friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.userId1).concat(userFriends.map(friend => friend.userId2)) } } });
+        friendsList.forEach(friend => {
+            friend = { name: friend.name, status: friend.status, statusMessage: friend.statusMessage, userId: friend.userId, username: friend.username };
+        });
 
-        const userInformation = { name: user.name, status: user.status, statusMessage: user.statusMessage };
+        const pendingFriends = await friends.findAll({ where: { userId2: user.userId } });
+        // this means it should only get the friends that have added this user
+        // e.g if blake has added me then he would be user id 1 and i would be user id 2
+        // so this means user id 2 will be me only if another user has added me like blake
+        
+        pendingFriends = pendingFriends.filter(friend => friend.pending === true);
+
+        // get the user information for the users that have added this user
+        const pendingFriendsList = await users.findAll({ where: { userId: { [Op.in]: pendingFriends.map(friend => friend.userId1) } } });
+        pendingFriendsList.forEach(friend => {
+            friend = { name: friend.name, userId: friend.userId, username: friend.username };
+        });
+
+        const userInformation = { name: user.name, status: user.status, statusMessage: user.statusMessage, userId: user.userId, username: user.username };
         console.log('User data sent ' + userInformation);
 
-        // res.send({ userInformation, friendsList, channels });
-        res.send({ userInformation, channelsData });
+        res.send({ userInformation, channelsData, friendsList, pendingFriendsList });
     });
 
 
@@ -133,50 +151,16 @@ io.on('connection', (socket) => {
 
 
 
-
-    socket.on('addUser', async (name) => {
-        const user = await users.findOne({ where: { name: name } });
-        if (!user) {
-            //create a random id for the user
-            console.log('Creating user ' + name + ' ' + socket.id);
-            await users.create({ name: name, socketId: socket.id, status: 1, statusMessage: '' });
-        } else if (user.socketId !== socket.id) {
-            await users.update({ socketId: socket.id }, { where: { name: name } });
-            console.log('User already exists, updating socket id ' + name + ' ' + socket.id);
-        }
-        const allUsers = await users.findAll();
-        io.emit('users', allUsers);
-    });
-
-    // this is now handled by the addUser function
-    // socket.on('getUserInfo', async (userId) => {
-    //     console.log('Getting user info for user ' + userId);
-    //     const user = await users.findOne({ where: { userId: userId } });
-    //     // const userFriends = 
-    //     const channelLinks = await channelLink.findAll({ where: { userId: userId } });
-    //     const channelNames = await channels.findAll({ where: { channelId: { [Op.in]: channelLinks.map(channelLink => channelLink.channelId) } } });
-    //     //send the channel names and ids to the user
-    //     const userChannels = channelNames.map(channel => {
-    //         return { name: channel.name, channelId: channel.channelId };
-    //     });
-    //     if (!user) {
-    //         console.log('User not found');
-    //         return;
-    //     }
-    //     io.to(socket.id).emit('userInfo', user, userChannels);
-    // });
-
-
-
     //This is the function that will be called when a user sends a message
     //It will send the message to all users in the channel by using the channelId and looking in the 
     //channelLink table for all users in the channel, then looking in the users table for the socketId of the user
     //and sending the message to all the socketIds
     app.post('/message', async (req, res) => {
         const { message, userId, channelId } = req.body;
+        const { token } = req.headers.authorization.split(' ')[1];
         console.log('Message: ' + message + ' User ID: ' + userId + ' Channel ID: ' + channelId);
         const time = new Date();
-        if (!message || !userId || !channelId) {
+        if (!message || !userId || !channelId || !token) {
             console.log('Invalid message or userId or channelId');
             return res.sendStatus(400);
         }
@@ -186,6 +170,11 @@ io.on('connection', (socket) => {
             console.log('User not found');
             return res.sendStatus(404);
         }
+        if (senderUser.token !== token) {
+            console.log('Invalid token');
+            return res.sendStatus(403);
+        }
+
         const channel = await channels.findOne({ where: { channelId: channelId } });
         if (!channel) {
             console.log('Channel not found');
@@ -202,7 +191,7 @@ io.on('connection', (socket) => {
             if (user.userId === userId) {
                 return;
             }
-            io.to(user.socketId).emit('message', message, senderName, time, channelId );
+            io.to(user.socketId).emit('message', message, senderName, time, channelId, userId);
         });
         //save the message to the database
         await messages.create({ message: message, userId: senderUser.userId, time: time, channelId: channelId });
@@ -214,34 +203,46 @@ io.on('connection', (socket) => {
     //create a channel
     app.post('/createChannel', async (req, res) => {
         const { name } = req.body;
-        if (!name) {
-            console.log('Invalid channel name');
+        const { token } = req.headers.authorization.split(' ')[1];
+        if (!name || !token) {
+            console.log('Invalid channel name or token');
             return res.sendStatus(400);
         }
-        const channel = await channels.findOne({ where: { name: name } });
-        if (channel) {
-            console.log('Channel already exists');
-            return res.sendStatus(409);
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
         }
-        await channels.create({ name: name });
+        //we dont need to check if the channel already exists because the channel name is not unique
+        // const channel = await channels.findOne({ where: { name: name } });
+        // if (channel) {
+        //     console.log('Channel already exists');
+        //     return res.sendStatus(409);
+        // }
+        const newChannel = await channels.create({ name: name });
         console.log('Channel created');
-        //send the updated list of channels to all users
-        const allChannels = await channels.findAll();
-        io.emit('channels', allChannels);
-        res.sendStatus(201);
+        // user join channel
+        await channelLink.create({ userId: user.userId, channelId: newChannel.channelId });
+        console.log('User joined channel');
+        res.send({ channelId: newChannel.channelId, name: newChannel.name });
     });
 
     //join a channel
     app.post('/joinChannel', async (req, res) => {
         const { userId, channelId } = req.body;
-        if (!userId || !channelId) {
-            console.log('Invalid userId or channelId');
+        const { token } = req.headers.authorization.split(' ')[1];
+        if (!userId || !channelId || !token) {
+            console.log('Invalid userId or channelId or token');
             return res.sendStatus(400);
         }
         const user = await users.findOne({ where: { userId: userId } });
         if (!user) {
             console.log('User not found');
             return res.sendStatus(404);
+        }
+        if (user.token !== token) {
+            console.log('Invalid token');
+            return res.sendStatus(403);
         }
         const channel = await channels.findOne({ where: { channelId: channelId } });
         if (!channel) {
@@ -253,17 +254,18 @@ io.on('connection', (socket) => {
             console.log('User already in channel');
             return res.sendStatus(409);
         }
-        await channelLink.create({ userId: userId, channelId: channelId });
+        const joinedChannel = await channelLink.create({ userId: userId, channelId: channelId });
         console.log('User joined channel');
-        res.sendStatus(200);
+        res.send({ channelId: joinedChannel.channelId, name: channel.name });
     });
 
     //load messages from a channel
     app.post('/loadMessages', async (req, res) => {
         const { channelId, lastMessageId } = req.body;
+        const { token } = req.headers.authorization.split(' ')[1];
         console.log('Loading messages for channel ' + channelId + ' from message ' + lastMessageId);
-        if (!channelId) {
-            console.log('Invalid channelId');
+        if (!channelId || !token) {
+            console.log('Invalid channelId or token');
             return res.sendStatus(400);
         }
         const channel = await channels.findOne({ where: { channelId: channelId } });
@@ -276,6 +278,18 @@ io.on('connection', (socket) => {
         const channelUsers = await channelLink.findAll({ where: { channelId: channelId } });
         const channelUsersList = channelUsers.map(user => user.userId);
         const usersInChannel = await users.findAll({ where: { userId: { [Op.in]: channelUsersList } } });
+
+        //make sure the user is in the channel
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
+        const userInChannel = await channelLink.findOne({ where: { userId: user.userId, channelId: channelId } });
+        if (!userInChannel) {
+            console.log('User not in channel');
+            return res.sendStatus(403);
+        }
 
         //only load the last 100 messages from the last loaded message
         if (lastMessageId) {
@@ -305,6 +319,126 @@ io.on('connection', (socket) => {
         
     });
 
+
+    app.post('/addFriend', async (req, res) => {
+        const { userId, friendUsername } = req.body;
+        const { token } = req.headers.authorization.split(' ')[1];
+        
+
+        if (!userId || !friendUsername || !token) {
+            console.log('Invalid userId or friendUsername or token');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found, or token invalid');
+            return res.sendStatus(404);
+        }
+        const friend = await users.findOne({ where: { username: friendUsername } });
+        if (!friend) {
+            console.log('Friend not found');
+            return res.sendStatus(404);
+        }
+        const userFriend = await friends.findOne({
+            where: {
+                [Op.or]: [
+                    { userId1: userId, userId2: friend.userId },
+                    { userId1: friend.userId, userId2: userId }
+                ]
+            }
+        });
+
+
+        if (userFriend) {
+            console.log('Friend already exists');
+            return res.sendStatus(409);
+        }
+        await friends.create({ userId1: userId, userId2: friend.userId, pending: true });
+        console.log('Friend added');
+        res.sendStatus(200);
+    });
+
+    app.post('/acceptFriend', async (req, res) => {
+        const { userId, friendId } = req.body;
+        const { token } = req.headers.authorization.split(' ')[1];
+        if (!userId || !friendId || !token) {
+            console.log('Invalid userId or friendId or token');
+            return res.sendStatus(400);
+        }
+        const user = await users.findOne({ where: { token: token } });
+        if (!user) {
+            console.log('User not found');
+            return res.sendStatus(404);
+        }
+        const friend = await users.findOne({ where: { userId: friendId } });
+        if (!friend) {
+            console.log('Friend not found');
+            return res.sendStatus(404);
+        }
+        const userFriend = await friends.findOne({
+            where: {
+                [Op.or]: [
+                    { userId1: userId, userId2: friendId },
+                    { userId1: friendId, userId2: userId }
+                ]
+            }
+        });
+        if (!userFriend) {
+            console.log('Friend not found');
+            return res.sendStatus(404);
+        }
+        if (userFriend.pending === false) {
+            console.log('Friend already accepted');
+            return res.sendStatus(409);
+        }
+        await friends.update({ pending: false }, {
+            where: {
+                [Op.or]: [
+                    { userId1: userId, userId2: friendId },
+                    { userId1: friendId, userId2: userId }
+                ]
+            }
+        });
+        console.log('Friend accepted');
+        res.sendStatus(200);
+    });
+        
+
+
+
+    
+    // This function is now handled by the login/signup post requests
+    // socket.on('addUser', async (name) => {
+    //     const user = await users.findOne({ where: { name: name } });
+    //     if (!user) {
+    //         //create a random id for the user
+    //         console.log('Creating user ' + name + ' ' + socket.id);
+    //         await users.create({ name: name, socketId: socket.id, status: 1, statusMessage: '' });
+    //     } else if (user.socketId !== socket.id) {
+    //         await users.update({ socketId: socket.id }, { where: { name: name } });
+    //         console.log('User already exists, updating socket id ' + name + ' ' + socket.id);
+    //     }
+    //     const allUsers = await users.findAll();
+    //     io.emit('users', allUsers);
+    // });
+
+    // this is now handled by the Userinfo post request
+    // socket.on('getUserInfo', async (userId) => {
+    //     console.log('Getting user info for user ' + userId);
+    //     const user = await users.findOne({ where: { userId: userId } });
+    //     // const userFriends = 
+    //     const channelLinks = await channelLink.findAll({ where: { userId: userId } });
+    //     const channelNames = await channels.findAll({ where: { channelId: { [Op.in]: channelLinks.map(channelLink => channelLink.channelId) } } });
+    //     //send the channel names and ids to the user
+    //     const userChannels = channelNames.map(channel => {
+    //         return { name: channel.name, channelId: channel.channelId };
+    //     });
+    //     if (!user) {
+    //         console.log('User not found');
+    //         return;
+    //     }
+    //     io.to(socket.id).emit('userInfo', user, userChannels);
+    // });
 
 
 

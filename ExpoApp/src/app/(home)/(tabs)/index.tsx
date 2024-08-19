@@ -27,6 +27,10 @@ const Home = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        getChannels();
+    }, []);
     
     const finaldata = [];
     
