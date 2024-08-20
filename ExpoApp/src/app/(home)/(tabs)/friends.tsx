@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext, createContext} from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard, 
 	KeyboardAvoidingView, ScrollView, Platform, 
-    Alert} from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+    Alert, Modal} from 'react-native';
 import { socket } from '../../../webSocket';
 import { getToken } from '../../../tokenHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AddFriendModal from '../../../components/addFriendModal';
+import AcceptFriend from '../../../components/acceptFriend';
 
 //this is for the friend list
 // there should be a button at the top of the screen that says "Add Friend"
@@ -16,11 +17,30 @@ const Friends = () => {
     const [isLoading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [token, setToken] = useState('');
-    const { id } = useLocalSearchParams();
+    const [id, setId] = useState('');
     const [friend, setFriend] = useState('');
     const [friendList, setFriendList] = useState([]);
+    const [pendingFriendList, setPendingFriendList] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+    
+
 
     useEffect(() => {
+        AsyncStorage.getItem('userInfo').then((value) => {
+            const data = JSON.parse(value);
+            setId(data.userId);
+        })
+        .catch((error) => {
+            console.error('AsyncStorage error:', error);
+        });
+        AsyncStorage.getItem('pendingFriends').then((value) => {
+            const data = JSON.parse(value);
+            setPendingFriendList(data);
+        })
+        .catch((error) => {
+            console.error('AsyncStorage error:', error);
+        });
         getToken().then((token) => {
             setToken(token);
         })
@@ -37,8 +57,11 @@ const Friends = () => {
             setLoading(true);
             const value = await AsyncStorage.getItem('friends');
             if (value !== null) {
+                console.log('Friend list:', JSON.parse(value));
                 setFriendList(JSON.parse(value));
-            } 
+            } else {
+                console.log('No friends');
+            }
         } catch (error) {
             console.error('AsyncStorage error:', error);
             setError(error);
@@ -47,13 +70,15 @@ const Friends = () => {
         }
     }
 
-    const addFriend = async () => {
+    const addFriend = async (token, id, friend) => {
         try {
+            console.log(token);
+            console.log(id);
+            console.log(friend);
             setLoading(true);
             const response = await fetch('https://jaydenmoore.net/addFriend', {
                 method: 'POST',
                 headers: {
-                    Accept: 'application/json',
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token,
                 },
@@ -64,15 +89,59 @@ const Friends = () => {
             });
 
             if (!response.ok) {
+                const data = await response.json();
+                if (data.message === 'Friend not found') {
+                    Alert.alert('Error:', 'Friend not found');
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             } else {
-                console.log('HTTP status 200');
-                Alert.alert('Friend request sent');
+                const data = await response.json();
+                if (data.message === 'Friend not found') {
+                    Alert.alert('Error:', 'Friend not found');
+                    setError('Error: Friend not found');
+                } else {
+                    Alert.alert('Friend request sent');
+                }
             }
 
             const data = await response.json();
             console.log('Data:', data);
+            if (data.message === 'Friend not found') {
+                Alert.alert('Error:', 'Friend not found');
+                setError('Error: Friend not found');
+            }
             setFriend('');
+            fetchData();
+        } catch (error) {
+            console.error('Fetch error:', error);
+            // setError(error);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const acceptFriend = async (token, id, friendId) => {
+        try {
+            setLoading(true);
+            const response = await fetch('https://jaydenmoore.net/acceptFriend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token,
+                },
+                body: JSON.stringify({
+                    userId: id,
+                    friendId: friendId,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Data:', data);
             fetchData();
         } catch (error) {
             console.error('Fetch error:', error);
@@ -81,6 +150,8 @@ const Friends = () => {
             setLoading(false);
         }
     }
+    
+
 
     return (
         <KeyboardAvoidingView
@@ -91,17 +162,42 @@ const Friends = () => {
                 <ScrollView>
                     <View style={styles.container}>
                         <Text>Friends</Text>
-                        <TextInput
-                            style={styles.input}
-                            onChangeText={setFriend}
-                            value={friend}
-                            placeholder="Friend username"
+                        <AddFriendModal
+                            modalVisible={modalVisible}
+                            setModalVisible={setModalVisible}
+                            addFriend={addFriend}
+                            token={token}
+                            id={id}
                         />
-                        <Text onPress={addFriend}>Add Friend</Text>
+                        <Text 
+                            style={{ fontSize: 20, fontWeight: 'bold' }}
+                            
+                            onPress={() => {
+                                setModalVisible(true);
+                            }}
+                        >
+                            Add Friend
+                        </Text>
+                        <AcceptFriend
+                            modalVisible={acceptModalVisible}
+                            setModalVisible={setAcceptModalVisible}
+                            acceptFriend={acceptFriend}
+                            token={token}
+                            id={id}
+                            pendingFriendList={pendingFriendList}
+                        />
+                        <Text 
+                            style={{ fontSize: 20, fontWeight: 'bold' }}
+                            onPress={() => {
+                                setAcceptModalVisible(true);
+                            }}
+                        >
+                            Accept Friend Requests
+                        </Text>
                         {error ? <Text>{error.toString()}</Text> : null}
                         {isLoading ? <Text>Loading...</Text> : null}
                         {friendList.map((friend) => (
-                            <Text key={friend.friendId}>{friend.name}</Text>
+                            <Text key={friend.userId}>{friend.name}</Text>
                         ))}
                     </View>
                 </ScrollView>
@@ -121,3 +217,5 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
 });
+
+export default Friends;

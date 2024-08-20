@@ -70,10 +70,13 @@ export default function Auth() {
         if (userData) {
           const userInfo = userData.userInformation;
           const channels = userData.channelsData;
-          // const friends = userData.friendsList;
+          const friends = userData.friendsList;
+          const pendingFriends = userData.pendingFriendsList;
 
           console.log('User info:', userInfo);
           console.log('Channels:', channels);
+          console.log('Friends:', friends);
+          console.log('Pending friends:', pendingFriends);
 
           try {
             if (userInfo) {
@@ -82,9 +85,12 @@ export default function Auth() {
             if (channels) {
               await AsyncStorage.setItem('channels', JSON.stringify(channels))
             }
-            // if (friends) {  
-              // await AsyncStorage.setItem('friends', JSON.stringify(friends))
-            // }
+            if (friends) {  
+              await AsyncStorage.setItem('friends', JSON.stringify(friends))
+            }
+            if (pendingFriends) {
+              await AsyncStorage.setItem('pendingFriends', JSON.stringify(pendingFriends))
+            }
           } catch (error) {
             console.error('Error:', error)
             Alert.alert('Error:', error)

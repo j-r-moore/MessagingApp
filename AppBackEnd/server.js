@@ -105,14 +105,21 @@ io.on('connection', (socket) => {
         const userChannels = await channelLink.findAll({ where: { userId: user.userId } });
         const channelsData = await channels.findAll({ where: { channelId: { [Op.in]: userChannels.map(channel => channel.channelId) } } });
 
-        const userFriends = await friends.findAll({ where: { [Op.or]: [{ userId1: user.userId }, { userId2: user.userId }] } });
+
+        let userFriends = await friends.findAll({ where: { [Op.or]: [{ userId1: user.userId }, { userId2: user.userId }] } });
+        console.log(userFriends);
+        console.log(user.userId);
         userFriends = userFriends.filter(friend => friend.pending === false);
-        const friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.userId1).concat(userFriends.map(friend => friend.userId2)) } } });
-        friendsList.forEach(friend => {
-            friend = { name: friend.name, status: friend.status, statusMessage: friend.statusMessage, userId: friend.userId, username: friend.username };
+        console.log(userFriends);
+        let friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.userId1).concat(userFriends.map(friend => friend.userId2)) } } });
+        //remove the user from the friends list
+        friendsList = friendsList.filter(friend => friend.userId !== user.userId);
+        //remove sensitive information from the friends 
+        friendsList = friendsList.map(friend => {
+            return { name: friend.name, userId: friend.userId, username: friend.username };
         });
 
-        const pendingFriends = await friends.findAll({ where: { userId2: user.userId } });
+        let pendingFriends = await friends.findAll({ where: { userId2: user.userId } });
         // this means it should only get the friends that have added this user
         // e.g if blake has added me then he would be user id 1 and i would be user id 2
         // so this means user id 2 will be me only if another user has added me like blake
@@ -120,9 +127,10 @@ io.on('connection', (socket) => {
         pendingFriends = pendingFriends.filter(friend => friend.pending === true);
 
         // get the user information for the users that have added this user
-        const pendingFriendsList = await users.findAll({ where: { userId: { [Op.in]: pendingFriends.map(friend => friend.userId1) } } });
-        pendingFriendsList.forEach(friend => {
-            friend = { name: friend.name, userId: friend.userId, username: friend.username };
+        let pendingFriendsList = await users.findAll({ where: { userId: { [Op.in]: pendingFriends.map(friend => friend.userId1) } } });
+        //remove sensitive information from the friends
+        pendingFriendsList = pendingFriendsList.map(friend => {
+            return { name: friend.name, userId: friend.userId, username: friend.username };
         });
 
         const userInformation = { name: user.name, status: user.status, statusMessage: user.statusMessage, userId: user.userId, username: user.username };
@@ -157,7 +165,7 @@ io.on('connection', (socket) => {
     //and sending the message to all the socketIds
     app.post('/message', async (req, res) => {
         const { message, userId, channelId } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         console.log('Message: ' + message + ' User ID: ' + userId + ' Channel ID: ' + channelId);
         const time = new Date();
         if (!message || !userId || !channelId || !token) {
@@ -203,7 +211,7 @@ io.on('connection', (socket) => {
     //create a channel
     app.post('/createChannel', async (req, res) => {
         const { name } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         if (!name || !token) {
             console.log('Invalid channel name or token');
             return res.sendStatus(400);
@@ -230,7 +238,7 @@ io.on('connection', (socket) => {
     //join a channel
     app.post('/joinChannel', async (req, res) => {
         const { userId, channelId } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         if (!userId || !channelId || !token) {
             console.log('Invalid userId or channelId or token');
             return res.sendStatus(400);
@@ -262,7 +270,7 @@ io.on('connection', (socket) => {
     //load messages from a channel
     app.post('/loadMessages', async (req, res) => {
         const { channelId, lastMessageId } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         console.log('Loading messages for channel ' + channelId + ' from message ' + lastMessageId);
         if (!channelId || !token) {
             console.log('Invalid channelId or token');
@@ -322,7 +330,7 @@ io.on('connection', (socket) => {
 
     app.post('/addFriend', async (req, res) => {
         const { userId, friendUsername } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         
 
         if (!userId || !friendUsername || !token) {
@@ -337,7 +345,8 @@ io.on('connection', (socket) => {
         const friend = await users.findOne({ where: { username: friendUsername } });
         if (!friend) {
             console.log('Friend not found');
-            return res.sendStatus(404);
+            const data = { message: 'Friend not found' };
+            return res.send(data);
         }
         const userFriend = await friends.findOne({
             where: {
@@ -358,9 +367,12 @@ io.on('connection', (socket) => {
         res.sendStatus(200);
     });
 
+
+
+
     app.post('/acceptFriend', async (req, res) => {
         const { userId, friendId } = req.body;
-        const { token } = req.headers.authorization.split(' ')[1];
+        const token = req.headers.authorization.split(' ')[1];
         if (!userId || !friendId || !token) {
             console.log('Invalid userId or friendId or token');
             return res.sendStatus(400);
