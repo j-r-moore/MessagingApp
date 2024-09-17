@@ -44,7 +44,7 @@ export default function Auth() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, socketId: socket.id }),
       })
       .then((response) => {
         console.log('response:', response);
@@ -126,7 +126,7 @@ export default function Auth() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password, username }),
+        body: JSON.stringify({ name, email, password, username, socketId: socket.id }),
       })
       .then((response) => {
         console.log('response:', response);

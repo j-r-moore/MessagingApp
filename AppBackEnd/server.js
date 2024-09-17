@@ -34,7 +34,7 @@ io.on('error', (err) => {
 
 
 io.on('connection', (socket) => {
-    console.log('A user connected');
+    console.log('A user connected with id ' + socket.id);
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
@@ -44,8 +44,9 @@ io.on('connection', (socket) => {
 
         
     app.post('/signup', async (req, res) => {
-        const { name, username, email, password } = req.body;
-        const socketId = socket.id;
+        const { name, username, email, password, socketId } = req.body;
+        console.log('Signup request received');
+        console.log(socketId);
         if (!name || !email || !password) {
             console.log('Invalid name or email or password');
             return res.sendStatus(400);
@@ -60,17 +61,20 @@ io.on('connection', (socket) => {
             console.log('Username already exists');
             return res.sendStatus(409);
         }
+        //remove extra spaces from the name
+        let nameTrimmed = name.trim();
         //token is a random string that is generated when the user signs up or logs in
         const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        await users.create({ name: name, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '', socketId: socketId, username: username });
+        await users.create({ name: nameTrimmed, email: email, hashedPassword: password, token: token, status: 1, statusMessage: '', socketId: socketId, username: username });
         console.log('User created');
         //send token to client
         res.send({ token });
     });
 
     app.post('/login', async (req, res) => {
-        const { email, password } = req.body;
-        const socketId = socket.id;
+        const { email, password, socketId } = req.body;
+        console.log('Login request received');
+        console.log(socketId);
         if (!email || !password) {
             console.log('Invalid email or password');
             return res.sendStatus(400);
@@ -107,10 +111,10 @@ io.on('connection', (socket) => {
 
 
         let userFriends = await friends.findAll({ where: { [Op.or]: [{ userId1: user.userId }, { userId2: user.userId }] } });
-        console.log(userFriends);
-        console.log(user.userId);
+        // console.log(userFriends);
+        // console.log(user.userId);
         userFriends = userFriends.filter(friend => friend.pending === false);
-        console.log(userFriends);
+        // console.log(userFriends);
         let friendsList = await users.findAll({ where: { userId: { [Op.in]: userFriends.map(friend => friend.userId1).concat(userFriends.map(friend => friend.userId2)) } } });
         //remove the user from the friends list
         friendsList = friendsList.filter(friend => friend.userId !== user.userId);
@@ -134,7 +138,7 @@ io.on('connection', (socket) => {
         });
 
         const userInformation = { name: user.name, status: user.status, statusMessage: user.statusMessage, userId: user.userId, username: user.username };
-        console.log('User data sent ' + userInformation);
+        // console.log('User data sent ' + userInformation);
 
         res.send({ userInformation, channelsData, friendsList, pendingFriendsList });
     });
@@ -195,11 +199,12 @@ io.on('connection', (socket) => {
         const channelUsersList = channelUsers.map(user => user.userId);
         const user = await users.findAll({ where: { userId: { [Op.in]: channelUsersList } } });
         senderName = senderUser.name;
+        data = { message, senderName, time, channelId, userId };
         user.forEach(user => {
             if (user.userId === userId) {
                 return;
             }
-            io.to(user.socketId).emit('message', message, senderName, time, channelId, userId);
+            io.to(user.socketId).emit('message', data);
         });
         //save the message to the database
         await messages.create({ message: message, userId: senderUser.userId, time: time, channelId: channelId });
@@ -209,29 +214,72 @@ io.on('connection', (socket) => {
     });
 
     //create a channel
+    // app.post('/createChannel', async (req, res) => {
+    //     const { name } = req.body;
+    //     const token = req.headers.authorization.split(' ')[1];
+    //     if (!name || !token) {
+    //         console.log('Invalid channel name or token');
+    //         return res.sendStatus(400);
+    //     }
+    //     const user = await users.findOne({ where: { token: token } });
+    //     if (!user) {
+    //         console.log('User not found');
+    //         return res.sendStatus(404);
+    //     }
+    //     //we dont need to check if the channel already exists because the channel name is not unique
+    //     // const channel = await channels.findOne({ where: { name: name } });
+    //     // if (channel) {
+    //     //     console.log('Channel already exists');
+    //     //     return res.sendStatus(409);
+    //     // }
+    //     const newChannel = await channels.create({ name: name });
+    //     console.log('Channel created');
+    //     // user join channel
+    //     await channelLink.create({ userId: user.userId, channelId: newChannel.channelId });
+    //     console.log('User joined channel');
+    //     res.send({ channelId: newChannel.channelId, name: newChannel.name });
+    // });
+
+    //create a channel for the user and the friend
     app.post('/createChannel', async (req, res) => {
-        const { name } = req.body;
+        const { userId, friendId } = req.body;
         const token = req.headers.authorization.split(' ')[1];
-        if (!name || !token) {
-            console.log('Invalid channel name or token');
+        if (!userId || !friendId || !token) {
+            console.log('Invalid userId or friendId or token');
             return res.sendStatus(400);
         }
-        const user = await users.findOne({ where: { token: token } });
+        const user = await users.findOne({ where: { userId: userId } });
         if (!user) {
             console.log('User not found');
             return res.sendStatus(404);
         }
-        //we dont need to check if the channel already exists because the channel name is not unique
-        // const channel = await channels.findOne({ where: { name: name } });
-        // if (channel) {
-        //     console.log('Channel already exists');
-        //     return res.sendStatus(409);
-        // }
-        const newChannel = await channels.create({ name: name });
+        if (user.token !== token) {
+            console.log('Invalid token');
+            return res.sendStatus(403);
+        }
+        const friend = await users.findOne({ where: { userId: friendId } });
+        if (!friend) {
+            console.log('Friend not found');
+            return res.sendStatus(404);
+        }
+        const userChannels = await channelLink.findAll({ where: { userId: userId } });
+        const friendChannels = await channelLink.findAll({ where: { userId: friendId } });
+        const commonChannel = userChannels.find(userChannels => friendChannels.find(friendChannel => friendChannel.channelId === userChannels.channelId));
+        if (commonChannel) {
+            console.log('Channel already exists');
+            //send the channel id and name to the client
+            return res.send({ channelId: commonChannel.channelId, name: commonChannel.name, message: 'Channel already exists' });
+        }
+        const newChannel = await channels.create({ name: user.name + ' and ' + friend.name });
         console.log('Channel created');
-        // user join channel
-        await channelLink.create({ userId: user.userId, channelId: newChannel.channelId });
-        console.log('User joined channel');
+        await channelLink.create({ userId: userId, channelId: newChannel.channelId });
+        await channelLink.create({ userId: friendId, channelId: newChannel.channelId });
+        console.log('User and friend joined channel');
+
+        //emit the new channel to the friend so they can see it
+        const friendSocketId = friend.socketId;
+        io.to(friendSocketId).emit('newChannel', { channelId: newChannel.channelId, name: newChannel.name });
+        
         res.send({ channelId: newChannel.channelId, name: newChannel.name });
     });
 

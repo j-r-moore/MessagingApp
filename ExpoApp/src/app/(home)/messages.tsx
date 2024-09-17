@@ -4,6 +4,7 @@ import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard,
 import { useLocalSearchParams } from 'expo-router';
 import { socket } from '../../webSocket';
 import { getToken } from '../../tokenHandler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 const Messages = () => {
@@ -13,31 +14,43 @@ const Messages = () => {
     const [error, setError] = useState(null);
 	const { id } = useLocalSearchParams();
 	const [token, setToken] = useState('');
+	const [userId, setUserId] = useState('');
+	const [isConnected, setIsConnected] = useState(socket.connected);
 
 	useEffect(() => {
-		getToken().then((token) => {
-			setToken(token);
-		}
-		)
-		.catch((error) => {
-			console.error('Error getting token:', error);
-		}
-		)
+        getToken().then((tokenFromStorage) => {
+            setToken(tokenFromStorage);
+            return tokenFromStorage;
+        })
+        .then((tokenFromStorage) => {
+            fetchData(tokenFromStorage);
+        })
 		.then(() => {
-			fetchData();
-		}
-		);
-	});
-	
+			console.log('Fetching user ID');
+			try {
+					AsyncStorage.getItem('userInfo')
+					.then((value) => {
+						const userInfo = JSON.parse(value);
+						setUserId(userInfo.userId);
+					});
+				}
+			catch (error) {
+				console.error('AsyncStorage error:', error);
+			}
+		})
+        .catch((error) => {
+            console.error('Token error:', error);
+        });
+    }, []);
 	
 
-    const fetchData = async () => {
+    const fetchData = async (token) => {
         try {
+			console.log('Fetching data');
             setLoading(true);
             const response = await fetch('https://jaydenmoore.net/loadMessages', {
                 method: 'POST',
                 headers: {
-                    Accept: 'application/json',
                     'Content-Type': 'application/json',
 					'Authorization': 'Bearer ' + token,
                 },
@@ -71,16 +84,27 @@ const Messages = () => {
 
 	//logic for when the server emits a message event while the user is on the messages page
 	useEffect(() => {
-		if (socket.connected) {
-			console.log('Socket connected');
-			socket.on('message', (message) => {
-				console.log('Message received:', message);
-				setData((prevData) => [...prevData, message]); // Add the new message to the data array
-			}
-		);
+		console.log('useEffect triggered');
+		console.log('Socket connection status:', isConnected);
+
+		if (isConnected) {
+			console.log('Socket id:', socket.id);
 		}
-	}
-	, []);
+	
+		
+	
+		function onMessage(data) {
+			console.log('Message received:', data);
+			setData((prevData) => [...prevData, data]);
+		}
+	
+		socket.on('message', onMessage);
+	
+		return () => {
+			console.log('Cleaning up event listeners');
+			socket.off('message', onMessage);
+		};
+	}, []);
 
 	//logic for when the messages input is submitted
 	const handleSubmit = () => {
@@ -94,7 +118,7 @@ const Messages = () => {
 			},
 			body: JSON.stringify({
 				channelId: id,
-				userId: 1,
+				userId: userId,
 				message: message,
 			}),
 		})

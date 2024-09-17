@@ -21,8 +21,7 @@ export default function ChannelList({ Id, name }) {
 const styles = StyleSheet.create({
     container: {
         padding: 16,
-        borderWidth: 1,
-        borderColor: 'black',
+        borderBottomWidth: 1,
     },
     messageText: {
         fontSize: 16,

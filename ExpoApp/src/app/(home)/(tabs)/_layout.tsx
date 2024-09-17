@@ -9,8 +9,8 @@ export default function TabsNavigator() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Home',
-                    tabBarIcon: ({ size, color }) => <FontAwesome5 name="home" size={size} color={color} />,
+                    title: 'Messages',
+                    tabBarIcon: ({ size, color }) => <FontAwesome5 name="comment" size={size} color={color} />,
                 }} />
             <Tabs.Screen
                 name="friends"

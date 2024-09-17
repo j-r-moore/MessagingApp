@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useContext, createContext} from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard, 
 	KeyboardAvoidingView, ScrollView, Platform, 
-    Alert, Modal} from 'react-native';
+    Alert, Modal,
+    Button, Pressable } from 'react-native';
 import { socket } from '../../../webSocket';
 import { getToken } from '../../../tokenHandler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AddFriendModal from '../../../components/addFriendModal';
 import AcceptFriend from '../../../components/acceptFriend';
+import { router } from 'expo-router';
+import { FontAwesome5 } from '@expo/vector-icons';
+
 
 //this is for the friend list
 // there should be a button at the top of the screen that says "Add Friend"
@@ -150,6 +154,52 @@ const Friends = () => {
             setLoading(false);
         }
     }
+
+    const messageFriend = async (friend) => {
+        try {
+            console.log('Message friend:', friend);
+            const response = await fetch('https://jaydenmoore.net/createChannel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token,
+                },
+                body: JSON.stringify({
+                    userId: id,
+                    friendId: friend.userId,
+                }),
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Data:', data);
+
+            if (data.message === 'Channel already exists') {
+                //open the channel
+                console.log('Channel already exists');
+                router.push({ pathname: '/messages', params: { id: data.channelId } });
+            } else {
+                //create the channel
+                console.log('Channel created');
+                AsyncStorage.getItem('channels').then((value) => {
+                    const AsyncStorageData = JSON.parse(value);
+                    AsyncStorageData.push(data);
+                    AsyncStorage.setItem('channels', JSON.stringify(data));
+                }
+                )
+                .catch((error) => {
+                    console.error('AsyncStorage error:', error);
+                });
+                router.push({ pathname: '/messages', params: { id: data.channelId } });
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            setError(error);
+        }
+    }
     
 
 
@@ -160,8 +210,8 @@ const Friends = () => {
         >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <ScrollView>
-                    <View style={styles.container}>
-                        <Text>Friends</Text>
+
+                <View style={styles.addAndAcceptButtons}>
                         <AddFriendModal
                             modalVisible={modalVisible}
                             setModalVisible={setModalVisible}
@@ -169,15 +219,10 @@ const Friends = () => {
                             token={token}
                             id={id}
                         />
-                        <Text 
-                            style={{ fontSize: 20, fontWeight: 'bold' }}
-                            
-                            onPress={() => {
-                                setModalVisible(true);
-                            }}
-                        >
-                            Add Friend
-                        </Text>
+                        <Pressable style={styles.addFriendButton} onPress={() => setModalVisible(true)}>
+                            <Text>Add Friends</Text>
+                            <FontAwesome5 name="user-plus" size={24} color="black" paddingLeft={8} />
+                        </Pressable>
                         <AcceptFriend
                             modalVisible={acceptModalVisible}
                             setModalVisible={setAcceptModalVisible}
@@ -186,18 +231,25 @@ const Friends = () => {
                             id={id}
                             pendingFriendList={pendingFriendList}
                         />
-                        <Text 
-                            style={{ fontSize: 20, fontWeight: 'bold' }}
-                            onPress={() => {
-                                setAcceptModalVisible(true);
-                            }}
-                        >
-                            Accept Friend Requests
-                        </Text>
+                        <Pressable style={styles.acceptFriendButton} onPress={() => setAcceptModalVisible(true)}>
+                            <Text>Accept Friends</Text>
+                            <FontAwesome5 name="user-check" size={24} color="black" paddingLeft={8} />
+                        </Pressable>
+                    </View>
+
+                    <View style={styles.container}>
                         {error ? <Text>{error.toString()}</Text> : null}
                         {isLoading ? <Text>Loading...</Text> : null}
                         {friendList.map((friend) => (
-                            <Text key={friend.userId}>{friend.name}</Text>
+                            <View key={friend.userId} style={styles.friendContainer}>
+                                <Text style={styles.friendText}>{friend.name}</Text>
+                                <Button
+                                    title="Message"
+                                    onPress={() => {
+                                        messageFriend(friend);
+                                    }}
+                                />
+                            </View>
                         ))}
                     </View>
                 </ScrollView>
@@ -215,6 +267,40 @@ const styles = StyleSheet.create({
         borderColor: 'black',
         padding: 8,
         marginBottom: 8,
+    },
+    friendContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        borderBottomWidth: 1,
+        borderBottomColor: 'black',
+        padding: 8,
+    },
+    friendText: {
+        fontSize: 16,
+    },
+    addAndAcceptButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    addFriendButton: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 8,
+        marginBottom: 8,
+        
+    },
+    acceptFriendButton: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 8,
+        marginBottom: 8,
+                
     },
 });
 

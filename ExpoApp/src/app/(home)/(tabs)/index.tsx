@@ -3,7 +3,6 @@ import { Text, View } from 'react-native';
 //import the channelList component
 import ChannelList from '../../../components/channelList';
 import { socket } from '../../../webSocket';
-import { useSession } from '../../../storeToken';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
@@ -11,7 +10,7 @@ const Home = () => {
     const [isLoading, setLoading] = useState(true);
     const [data, setData] = useState([]);
     const [error, setError] = useState(null);
-    const { signOut } = useSession();
+	const [isConnected, setIsConnected] = useState(socket.connected);
 
     const getChannels = async () => {
         try {
@@ -30,6 +29,16 @@ const Home = () => {
 
     useEffect(() => {
         getChannels();
+
+
+        if (!isConnected) {
+            socket.connect();
+        } else {
+            console.log('Socket already connected');
+            console.log('Socket ID:', socket.id);
+        }
+
+
     }, []);
     
     const finaldata = [];
@@ -41,8 +50,6 @@ const Home = () => {
 
     return (
         <View>
-            <Text>Home</Text>
-            <Text onPress={signOut}>Sign Out</Text>
             {error ? <Text>{error.toString()}</Text> : null}
             {isLoading ? <Text>Loading...</Text> : null}
             {finaldata.map((data) => (

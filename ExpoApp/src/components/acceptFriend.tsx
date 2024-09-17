@@ -31,7 +31,7 @@ const AcceptFriend = ({ modalVisible, setModalVisible, acceptFriend, token, id, 
                 >
                     <Text style={{ fontSize: 20, fontWeight: 'bold', }}>Accept Friend Requests</Text>
                     {pendingFriendList.map((pendingFriend) => (
-                        <View key={pendingFriend.userId}>
+                        <View key={pendingFriend.userId} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottomWidth: 1, borderBottomColor: 'black', padding: 8 }}>
                             <Text>{pendingFriend.name}</Text>
                             <Button
                                 title="Accept"
