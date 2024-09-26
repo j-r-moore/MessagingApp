@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import ChannelList from '../../../components/channelList';
 import { socket } from '../../../webSocket';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSocket } from '../../../context/SocketContext';
 
 
 const Home = () => {
@@ -11,6 +12,7 @@ const Home = () => {
     const [data, setData] = useState([]);
     const [error, setError] = useState(null);
 	const [isConnected, setIsConnected] = useState(socket.connected);
+    const { friendRequests, friendRequestAccepted, newChannel } = useSocket();
 
     const getChannels = async () => {
         try {
@@ -40,6 +42,25 @@ const Home = () => {
 
 
     }, []);
+
+    useEffect(() => {
+        if (newChannel.length > 0) {
+            for (let i = 0; i < newChannel.length; i++) {
+                let channelExists = false;
+                for (let j = 0; j < data.length; j++) {
+                    if (newChannel[i].channelId === data[j].channelId) {
+                        channelExists = true;
+                        break;
+                    }
+                }
+                if (!channelExists) {
+                    setData((prev) => [...prev, newChannel[i]]);
+                    AsyncStorage.setItem('channels', JSON.stringify([...data, newChannel[i]]));
+                }
+            }
+        }
+    }, [newChannel]);
+                    
     
     const finaldata = [];
     
@@ -47,6 +68,8 @@ const Home = () => {
     for (let i = 0; i < data.length; i++) {
         finaldata.push(data[i]);
     }
+
+
 
     return (
         <View>
@@ -58,5 +81,6 @@ const Home = () => {
         </View>
     );
 }
+
 
 export default Home;

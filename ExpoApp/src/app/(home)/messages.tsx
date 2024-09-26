@@ -78,7 +78,6 @@ const Messages = () => {
 	const finaldata = [];
 
 	for (let i = 0; i < data.length; i++) {
-		console.log(data[i]);
 		finaldata.push(data[i]);
 	}
 
@@ -95,7 +94,10 @@ const Messages = () => {
 	
 		function onMessage(data) {
 			console.log('Message received:', data);
-			setData((prevData) => [...prevData, data]);
+			console.log('Name:', data.senderName);
+			const name = data.senderName;
+			const message = data.message;
+			setData((prevData) => [...prevData, { name: name, message: message }]);
 		}
 	
 		socket.on('message', onMessage);

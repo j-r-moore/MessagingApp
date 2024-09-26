@@ -10,6 +10,7 @@ import AddFriendModal from '../../../components/addFriendModal';
 import AcceptFriend from '../../../components/acceptFriend';
 import { router } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useSocket } from '../../../context/SocketContext';
 
 
 //this is for the friend list
@@ -27,6 +28,8 @@ const Friends = () => {
     const [pendingFriendList, setPendingFriendList] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+    const { friendRequests, friendRequestAccepted, newChannel } = useSocket();
+
     
 
 
@@ -55,6 +58,55 @@ const Friends = () => {
             fetchData();
         });
     }, []);
+
+
+    useEffect(() => {
+        if (friendRequests.length > 0) {
+            // for each friend request, check if it is already in the pending friend list
+            for (let i = 0; i < friendRequests.length; i++) {
+                // set the flag
+                let friendExists = false;
+                // loop through the pending friend list to see if friendRequest[i] is already in the list
+                for (let j = 0; j < pendingFriendList.length; j++) {
+                    if (pendingFriendList[j].userId === friendRequests[i].userId) {
+                        friendExists = true;
+                        console.log('Friend already exists');
+                        break;
+                    }
+                }
+                // completed the check to see if it already exists
+                if (!friendExists) {
+                    // add the friend to the pending friend list
+                    console.log('Friend does not exist');
+                    console.log('Friend request:', friendRequests[i]);
+                    setPendingFriendList((prev) => [...prev, friendRequests[i]]);
+                    console.log('Pending friend list:', pendingFriendList);
+                    // save the pending friend list to AsyncStorage
+                    AsyncStorage.setItem('pendingFriends', JSON.stringify([...pendingFriendList, friendRequests[i]]));
+                }
+             
+            }
+        }
+    }, [friendRequests]);
+
+    useEffect(() => {
+        if (friendRequestAccepted.length > 0) {
+            for (let i = 0; i < friendRequestAccepted.length; i++) {
+                let friendExists = false;
+                for (let j = 0; j < friendList.length; j++) {
+                    if (friendList[j].userId === friendRequestAccepted[i].userId) {
+                        friendExists = true;
+                        break;
+                    }
+                }
+                if (!friendExists) {
+                    setFriendList((prev) => [...prev, friendRequestAccepted[i]]);
+                    AsyncStorage.setItem('friends', JSON.stringify([...friendList, friendRequestAccepted[i]]));
+                }
+            }
+        }
+    }, [friendRequestAccepted]);
+
 
     const fetchData = async () => {
         try {

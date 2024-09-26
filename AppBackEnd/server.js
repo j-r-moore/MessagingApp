@@ -278,7 +278,10 @@ io.on('connection', (socket) => {
 
         //emit the new channel to the friend so they can see it
         const friendSocketId = friend.socketId;
+        const userSocketId = user.socketId;
         io.to(friendSocketId).emit('newChannel', { channelId: newChannel.channelId, name: newChannel.name });
+        io.to(userSocketId).emit('newChannel', { channelId: newChannel.channelId, name: newChannel.name });
+
         
         res.send({ channelId: newChannel.channelId, name: newChannel.name });
     });
@@ -412,6 +415,11 @@ io.on('connection', (socket) => {
         }
         await friends.create({ userId1: userId, userId2: friend.userId, pending: true });
         console.log('Friend added');
+
+        //emit the friend request to the friend
+        const friendSocketId = friend.socketId;
+        io.to(friendSocketId).emit('friendRequest', { name: user.name, userId: user.userId });
+
         res.sendStatus(200);
     });
 
@@ -460,6 +468,11 @@ io.on('connection', (socket) => {
             }
         });
         console.log('Friend accepted');
+
+        //emit the friend acceptance to the friend
+        const friendSocketId = friend.socketId;
+        io.to(friendSocketId).emit('friendRequestAccepted', { name: user.name, userId: user.userId });
+
         res.sendStatus(200);
     });
         

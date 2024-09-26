@@ -17,15 +17,6 @@ export default function Auth() {
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
 
-  if (socket.disconnected) {
-    // wait 10 seconds before assuming the connection is lost
-    setTimeout(() => {
-      if (socket.disconnected) {
-        Alert.alert('Connection lost', 'Please check your internet connection')
-      }
-    }, 10000)
-  }
-
 
   async function signInWithEmail() {
     setLoading(true)
@@ -158,10 +149,18 @@ export default function Auth() {
           console.log('Channels:', channels);
 
           try {
-            await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo))
-            await AsyncStorage.setItem('channels', JSON.stringify(channels))
-            await AsyncStorage.setItem('friends', JSON.stringify(friends))
-            await AsyncStorage.setItem('pendingFriends', JSON.stringify(pendingFriends))
+            if (userInfo) {
+              await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo))
+            }
+            if (channels) {
+              await AsyncStorage.setItem('channels', JSON.stringify(channels))
+            }
+            if (friends) {  
+              await AsyncStorage.setItem('friends', JSON.stringify(friends))
+            }
+            if (pendingFriends) {
+              await AsyncStorage.setItem('pendingFriends', JSON.stringify(pendingFriends))
+            }
           } catch (error) {
             console.error('Error:', error)
             Alert.alert('Error:', error)

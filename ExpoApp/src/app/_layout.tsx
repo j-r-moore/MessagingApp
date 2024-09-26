@@ -1,12 +1,17 @@
 // Define global providers
 
-import { Slot, Stack } from 'expo-router' ;
+import { Slot } from 'expo-router' ;
 import { SessionProvider } from '../storeToken';
+import { SocketProvider } from '../context/SocketContext';
+
 
 export default function RootLayout() {
     return (
+
         <SessionProvider>
-            <Slot />
+            <SocketProvider>
+                <Slot />
+            </SocketProvider>
         </SessionProvider>
     );
 }

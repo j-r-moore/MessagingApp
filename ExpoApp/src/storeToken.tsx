@@ -1,6 +1,9 @@
 import { useContext, createContext, type PropsWithChildren, useState } from 'react';
 import { storeToken, getToken, deleteToken } from './tokenHandler';
 import { Alert } from 'react-native';
+import { router } from 'expo-router';
+
+
 
 
 const AuthContext = createContext<{ // sign in and out context
@@ -46,6 +49,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
                     Alert.alert('You have been signed out');
                     await deleteToken();
                     setSession([null, false]);
+                    router.navigate('/');
                 },
             }}
         >
